@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Переводчик русский → ингушский</title>
+<meta name="description" content="Нейросетевой переводчик с русского на ингушский язык на базе NLLB-200">
+<style>
+  :root{
+    --bg:#0f1216; --card:#171b21; --line:#252b34; --fg:#e7ecf3;
+    --mut:#9aa6b5; --acc:#4a9eff; --ok:#3ecf8e; --warn:#f0a742; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 18px 64px}
+  header{padding:26px 0 18px;border-bottom:1px solid var(--line);margin-bottom:24px}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:-.3px}
+  .sub{color:var(--mut);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px;margin-bottom:16px}
+  textarea{width:100%;min-height:120px;resize:vertical;background:#0d1014;
+    color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    font:16px/1.5 inherit;outline:none}
+  textarea:focus{border-color:var(--acc)}
+  .out{min-height:120px;background:#0d1014;border:1px solid var(--line);
+    border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word}
+  .out.empty{color:var(--mut)}
+  label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:150px}
+  button{background:var(--acc);color:#fff;border:0;border-radius:10px;
+    padding:12px 26px;font-size:15px;font-weight:600;cursor:pointer}
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.5;cursor:default}
+  input[type=text]{width:100%;background:#0d1014;color:var(--fg);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    font:14px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;outline:none}
+  input[type=text]:focus{border-color:var(--acc)}
+  .status{font-size:13px;margin-top:10px;color:var(--mut)}
+  .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--mut);margin-right:7px;vertical-align:middle}
+  .dot.ok{background:var(--ok)} .dot.err{background:var(--err)} .dot.warn{background:var(--warn)}
+  details{margin-top:14px}
+  summary{cursor:pointer;color:var(--acc);font-size:14px;user-select:none}
+  .hint{font-size:13.5px;color:var(--mut);margin-top:12px}
+  code{background:#0d1014;border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;font:13px ui-monospace,Consolas,monospace;color:#cfe3ff}
+  pre{background:#0d1014;border:1px solid var(--line);border-radius:10px;
+    padding:12px;overflow:auto;font:13px ui-monospace,Consolas,monospace;color:#cfe3ff}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600}
+  a{color:var(--acc)}
+  .warnbox{background:#2a2010;border:1px solid #5a4520;border-radius:10px;
+    padding:12px 14px;font-size:14px;margin-top:14px}
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+    color:var(--mut);font-size:13px}
+  .ex{display:inline-block;background:#0d1014;border:1px solid var(--line);
+    border-radius:16px;padding:5px 12px;margin:4px 6px 0 0;font-size:13.5px;
+    cursor:pointer;color:var(--fg)}
+  .ex:hover{border-color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Переводчик русский → ингушский</h1>
+  <div class="sub">Нейросеть NLLB-200 с дообучением на русско-ингушском корпусе</div>
+</header>
+
+<div class="card">
+  <label>Текст на русском</label>
+  <textarea id="src" placeholder="Введите текст…">У него большой камень.</textarea>
+  <div style="margin-top:8px">
+    <span class="ex">Здравствуйте!</span>
+    <span class="ex">Это большой дом.</span>
+    <span class="ex">Мальчик читает книгу.</span>
+    <span class="ex">Сегодня хорошая погода.</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row">
+    <div style="flex:0 0 auto">
+      <button id="go">Перевести</button>
+    </div>
+    <div>
+      <label>Адрес сервера перевода</label>
+      <input type="text" id="api" placeholder="http://127.0.0.1:8080">
+    </div>
+  </div>
+  <div class="status" id="st"><span class="dot" id="dot"></span><span id="sttext">проверяю соединение…</span></div>
+</div>
+
+<div class="card">
+  <label>Перевод на ингушский</label>
+  <div class="out empty" id="out">—</div>
+  <div class="status" id="meta"></div>
+</div>
+
+<div class="warnbox">
+  <b>Качество.</b> Модель часто ошибается в классном префиксе прилагательных
+  (класс «б» — около 31 % правильных). Перевод пригоден как черновик
+  и требует вычитки носителем языка.
+</div>
+
+<details open>
+  <summary>Сервер не найден — что делать</summary>
+  <div class="hint">
+    <p>Эта страница ничего не переводит сама. Она отправляет текст программе,
+    запущенной <b>на вашем компьютере</b> или на компьютере коллеги в вашей сети.
+    Текст не уходит в интернет.</p>
+
+    <p><b>Вариант 1. Запустить у себя</b></p>
+    <pre>git clone https://github.com/etrofimovv/ing.git</pre>
+    <p>Скачать файлы модели (см.
+    <a href="https://github.com/etrofimovv/ing#модель" target="_blank">README</a>),
+    затем запустить <code>ЗАПУСТИТЬ_СЕРВЕР_API.bat</code>.
+    Адрес по умолчанию — <code>http://127.0.0.1:8080</code>.</p>
+
+    <p><b>Вариант 2. Подключиться к коллеге</b></p>
+    <p>Если сервер уже запущен на другом компьютере в вашей сети, впишите
+    в поле выше его адрес, например <code>http://192.168.1.50:8080</code>.
+    На том компьютере в файле <code>.env</code> должно быть
+    <code>ING_HOST=0.0.0.0</code>.</p>
+  </div>
+</details>
+
+<details>
+  <summary>Качество перевода — подробно</summary>
+  <div class="hint">
+    <p>Ингушский — нахский язык с грамматическими классами: прилагательные
+    и связки согласуются с классом существительного (б / д / в / й).
+    Это главная сложность.</p>
+    <table>
+      <tr><th>Класс</th><th>Точность</th></tr>
+      <tr><td>в</td><td>100 %</td></tr>
+      <tr><td>й</td><td>55 %</td></tr>
+      <tr><td>д</td><td>39 %</td></tr>
+      <tr><td>б</td><td>31 %</td></tr>
+    </table>
+    <p>Пример: «У него большой камень» → <i>Йоккха кхера ба цун</i>.
+    Связка <i>ба</i> верна, но префикс должен быть <i>Боккха</i>.</p>
+    <table>
+      <tr><th>Метрика (dev 400)</th><th>Значение</th></tr>
+      <tr><td>BLEU</td><td>10.10</td></tr>
+      <tr><td>chrF++</td><td>34.40</td></tr>
+      <tr><td>Точность класса (macro)</td><td>56.1 %</td></tr>
+    </table>
+  </div>
+</details>
+
+<footer>
+  Исходный код: <a href="https://github.com/etrofimovv/ing" target="_blank">github.com/etrofimovv/ing</a><br>
+  Код — MIT. Модель NLLB-200 — CC-BY-NC 4.0, только некоммерческое использование.
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DEFAULT_API = "http://127.0.0.1:8080";
+  var busy = false;
+
+  function apiUrl(){
+    var v = ($("api").value || "").trim();
+    if (!v) v = DEFAULT_API;
+    return v.replace(/\/+$/, "");
+  }
+
+  function setStatus(cls, text){
+    $("dot").className = "dot " + cls;
+    $("sttext").textContent = text;
+    $("st").className = "status " + cls;
+  }
+
+  // адрес сервера запоминается в браузере
+  try {
+    var saved = localStorage.getItem("ing_api");
+    if (saved) $("api").value = saved;
+  } catch(e){}
+
+  function checkHealth(){
+    var url = apiUrl();
+    setStatus("", "проверяю " + url + " …");
+    var ctl = new AbortController();
+    var tm = setTimeout(function(){ ctl.abort(); }, 6000);
+
+    fetch(url + "/health", {signal: ctl.signal})
+      .then(function(r){ clearTimeout(tm); if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(d){
+        var dev = d.device || "?";
+        var mdl = d.loaded_model_id || d.default_model_id || "?";
+        setStatus("ok", "сервер на связи · " + dev + " · модель " + mdl);
+      })
+      .catch(function(){
+        clearTimeout(tm);
+        setStatus("err", "сервер не найден по адресу " + url + " — см. раздел ниже");
+      });
+  }
+
+  function translate(){
+    if (busy) return;
+    var text = ($("src").value || "").trim();
+    if (!text){ $("src").focus(); return; }
+
+    busy = true;
+    $("go").disabled = true;
+    $("go").textContent = "Перевожу…";
+    $("meta").textContent = "";
+    $("out").textContent = "…";
+    $("out").className = "out empty";
+
+    var url = apiUrl();
+    try { localStorage.setItem("ing_api", $("api").value.trim()); } catch(e){}
+
+    var t0 = Date.now();
+    var ctl = new AbortController();
+    var tm = setTimeout(function(){ ctl.abort(); }, 180000);
+
+    fetch(url + "/v1/translate", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text: text, direction: "ru2inh"}),
+      signal: ctl.signal
+    })
+    .then(function(r){
+      clearTimeout(tm);
+      if (r.status === 401 || r.status === 403) throw new Error("нужен токен доступа");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(function(d){
+      $("out").textContent = d.translation || "(пусто)";
+      $("out").className = "out";
+      var ms = d.latency_ms ? Math.round(d.latency_ms) : (Date.now() - t0);
+      $("meta").textContent = "модель " + (d.model_id || "?") + " · " + ms + " мс · " + (d.device || "?");
+      $("meta").className = "status ok";
+      setStatus("ok", "сервер на связи");
+    })
+    .catch(function(err){
+      clearTimeout(tm);
+      var m = String(err && err.message || err);
+      if (m.indexOf("abort") >= 0) m = "превышено время ожидания";
+      $("out").textContent = "—";
+      $("out").className = "out empty";
+      $("meta").textContent = "не удалось перевести: " + m;
+      $("meta").className = "status err";
+      setStatus("err", "нет связи с " + url + " — см. раздел ниже");
+    })
+    .then(function(){
+      busy = false;
+      $("go").disabled = false;
+      $("go").textContent = "Перевести";
+    });
+  }
+
+  $("go").addEventListener("click", translate);
+  $("src").addEventListener("keydown", function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") translate();
+  });
+  $("api").addEventListener("change", checkHealth);
+
+  var ex = document.getElementsByClassName("ex");
+  for (var i = 0; i < ex.length; i++){
+    ex[i].addEventListener("click", function(){
+      $("src").value = this.textContent;
+      translate();
+    });
+  }
+
+  if (!$("api").value) $("api").placeholder = DEFAULT_API;
+  checkHealth();
+})();
+</script>
+</body>
+</html>

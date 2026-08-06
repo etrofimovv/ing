@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 SERVE_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +24,31 @@ if str(SERVE_DIR) not in sys.path:
 from app.engine import DIR_INH2RU, DIR_RU2INH, get_engine, load_yaml  # noqa: E402
 
 app = FastAPI(title="ING NLLB Translator", version="0.1.0")
+
+# CORS: страница на GitHub Pages обращается к этому API из браузера.
+# Без этого браузер блокирует запрос (cross-origin).
+# Список разрешённых сайтов задаётся в .env: ING_CORS_ORIGINS
+# По умолчанию — GitHub Pages автора и localhost.
+_origins_raw = (os.environ.get("ING_CORS_ORIGINS") or "").strip()
+if _origins_raw == "*":
+    _cors_kwargs = {"allow_origins": ["*"]}
+elif _origins_raw:
+    _cors_kwargs = {"allow_origins": [o.strip() for o in _origins_raw.split(",") if o.strip()]}
+else:
+    _cors_kwargs = {
+        "allow_origins": [
+            "https://etrofimovv.github.io",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ]
+    }
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    **_cors_kwargs,
+)
 
 
 class TranslateIn(BaseModel):
