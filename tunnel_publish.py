@@ -100,14 +100,55 @@ def run_tunnel(port):
     ]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
+    started = threading.Event()
+    state = {"addr": None, "stop": False}
+
+    def watchdog():
+        """Адрес может умереть без сообщения в консоли — проверяем снаружи."""
+        started.wait()
+        misses = 0
+        while not state["stop"]:
+            time.sleep(45)
+            if state["stop"] or not state["addr"]:
+                continue
+            try:
+                urllib.request.urlopen(state["addr"] + "/health", timeout=20)
+                misses = 0
+            except Exception:
+                misses += 1
+                if misses >= 2:
+                    log("  адрес перестал отвечать — перезапускаю туннель")
+                    state["stop"] = True
+                    try:
+                        p.terminate()
+                    except Exception:
+                        pass
+                    return
+
+    threading.Thread(target=watchdog, daemon=True).start()
+
     address = None
     for raw in iter(p.stdout.readline, b""):
         m = URL_RE.search(raw)
-        if m and not address:
-            address = m.group(0).decode()
-            log("")
+        if not m:
+            continue
+        found = m.group(0).decode()
+        if found == address:
+            continue  # тот же адрес — повторное сообщение, ничего не делаем
+
+        # ssh умеет переподключаться сам, выдавая ДРУГОЙ адрес.
+        # Публикуем каждый новый, иначе на сайте останется мёртвый.
+        first = address is None
+        address = found
+        state["addr"] = found
+        log("")
+        if first:
             log("  туннель открыт: %s" % address)
-            publish(address)
+        else:
+            log("  адрес сменился: %s" % address)
+        publish(address)
+        started.set()
+        if first:
             log("")
             log("  " + "=" * 60)
             log("  ССЫЛКА ДЛЯ КОЛЛЕГ (всегда одна и та же):")
@@ -117,6 +158,8 @@ def run_tunnel(port):
             log("  Не закрывайте это окно.")
             log("")
     p.wait()
+    state["stop"] = True
+    started.set()
     return address
 
 
