@@ -185,6 +185,11 @@
   //                3) из памяти браузера — только как запасной вариант
   // ВАЖНО: api.json главнее памяти. Иначе однажды сохранённый адрес
   // остаётся навсегда и после ротации туннеля связь пропадает.
+  // Источник адреса — raw.githubusercontent, а НЕ api.json рядом со страницей:
+  // CDN GitHub Pages кеширует файл и отстаёт на десятки минут (а при сбое
+  // деплоя — навсегда), тогда как raw отдаёт свежий коммит сразу и с CORS *.
+  var CFG = "https://raw.githubusercontent.com/etrofimovv/ing/main/api.json";
+
   var fromUrl = null, saved = null;
   try {
     fromUrl = new URLSearchParams(location.search).get("api");
@@ -265,7 +270,7 @@
       // Возможно, туннель сменил адрес, пока страница была открыта.
       // Перечитываем api.json и, если адрес новый, повторяем перевод один раз.
       if (!retried) {
-        fetch("api.json?t=" + Date.now(), {cache: "no-store"})
+        fetch(CFG + "?t=" + Date.now(), {cache: "no-store"})
           .then(function(r){ return r.ok ? r.json() : null; })
           .then(function(cfg){
             var fresh = cfg && cfg.api ? String(cfg.api).trim() : "";
@@ -312,7 +317,7 @@
     checkHealth();
   } else {
     setStatus("", "узнаю адрес сервера…");
-    fetch("api.json?t=" + Date.now(), {cache: "no-store"})
+    fetch(CFG + "?t=" + Date.now(), {cache: "no-store"})
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(cfg){
         if (cfg && cfg.api) {
