@@ -111,7 +111,7 @@ def build_cmd(port, provider):
     return base + ["-R", "80:127.0.0.1:%s" % port, "nokey@localhost.run"]
 
 
-def run_tunnel(port, provider="serveo"):
+def run_tunnel(port, provider="localhost.run"):
     """Один цикл жизни туннеля. Возвращается, когда туннель закрылся."""
     cmd = build_cmd(port, provider)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -192,7 +192,7 @@ def main():
 
     log("Сервер найден. Открываю туннель...")
 
-    provider = "serveo"
+    provider = "localhost.run"
     attempt = 0
     while True:
         attempt += 1
@@ -208,17 +208,6 @@ def main():
         if not server_alive(port):
             log("Сервер перевода остановлен — выхожу.")
             return 0
-
-        # serveo не дал адрес (ключ не зарегистрирован / имя занято) —
-        # переходим на localhost.run, он работает всегда
-        if provider == "serveo" and not got:
-            log("")
-            log("  Постоянное имя на serveo недоступно.")
-            log("  Чтобы включить его, зарегистрируйте ssh-ключ:")
-            log("      https://console.serveo.net")
-            log("  Пока перехожу на запасной туннель (адрес случайный,")
-            log("  но ссылка для коллег остаётся прежней).")
-            provider = "localhost.run"
 
         log("  туннель закрылся, поднимаю заново (попытка %d)..." % (attempt + 1))
         time.sleep(3)
