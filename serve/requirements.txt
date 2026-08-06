@@ -1,0 +1,37 @@
+# Зависимости локального переводчика RU <-> INH (пакет 0_ING6).
+#
+# Стек проверен на боевом сервере: transformers 4.44.2 / peft 0.19.1.
+# Версии ниже подобраны так, чтобы вставать на обычной машине с интернетом.
+#
+# УСТАНОВКА:
+#   pip install -r requirements.txt
+#
+# GPU (NVIDIA): поставьте torch под свою CUDA ПЕРЕД этим файлом, например
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# Без GPU torch поставится в CPU-варианте автоматически (перевод медленнее,
+# ~10-30 с на предложение, но работает).
+
+# ВНИМАНИЕ: torch здесь НАМЕРЕННО не указан.
+# Его ставит УСТАНОВКА.bat отдельно — с поддержкой видеокарты (CUDA).
+# Если указать torch в этом файле, pip перезапишет GPU-версию на CPU-версию,
+# и перевод станет в 50 раз медленнее.
+#
+# Ручная установка torch:
+#   с видеокартой NVIDIA:  pip install torch --index-url https://download.pytorch.org/whl/cu124
+#   без видеокарты:        pip install torch
+
+transformers==4.44.2
+peft>=0.11,<0.20
+accelerate>=0.30
+safetensors>=0.4
+sentencepiece>=0.1.99
+tokenizers>=0.19,<0.20
+
+# веб-интерфейс (FastAPI, Gradio НЕ используется)
+fastapi>=0.110,<0.116
+starlette>=0.37,<0.42
+uvicorn>=0.27
+pydantic>=2.5
+python-multipart>=0.0.9
+pyyaml>=6.0
+requests>=2.31

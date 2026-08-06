@@ -1,0 +1,21 @@
+# Нормализация переводов строк.
+# Windows-скриптам нужен CRLF, иначе cmd.exe может их не выполнить.
+* text=auto
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.sh  text eol=lf
+*.py  text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+
+# бинарные
+*.safetensors binary
+*.bin binary
+*.pt binary
+*.pth binary
+*.model binary

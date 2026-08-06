@@ -1,0 +1,34 @@
+# Runtime UI/API. Локальный запуск, без SSH и без внешних сервисов.
+# Собрано 2026-08-06 для передачи коллегам (пакет 0_ING6).
+project_root: null   # null = авто: родитель папки serve/
+
+host: "127.0.0.1"
+api_port: 8080
+ui_port: 7860
+
+# Не слушать 0.0.0.0 без явного решения + token
+share_gradio: false
+
+# Default — F19: лучшее согласование грамматических классов (macro 56.1%).
+# Альтернатива в UI — F14: выше BLEU (11.88), но слабее классы.
+# Токенизатор/база — PER-MODEL в models_registry.yaml.
+default_model_id: "f19_final"
+
+# fallback, если у модели не указан свой путь
+tokenizer_path: "tokenizers/nllb-200-rus-inh-v6"
+base_model_name: "models/v10-v6base-fixed"
+
+generation:
+  max_length: 128
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.05
+  max_source_length: 256
+
+# bfloat16 — для GPU (H100/H200/A100/RTX 30xx+).
+# На CPU движок сам переключится на float32 (медленно, но работает).
+dtype: "bfloat16"
+device: "auto"   # auto | cuda | cpu
+
+# опционально: bearer-токен для API (пусто = без auth, только localhost)
+api_token: ""
