@@ -166,6 +166,7 @@
   var $ = function(id){ return document.getElementById(id); };
   var DEFAULT_API = "http://127.0.0.1:8080";
   var busy = false;
+  var retried = false;   // защита от бесконечного повтора при смене адреса
 
   function apiUrl(){
     var v = ($("api").value || "").trim();
@@ -179,20 +180,16 @@
     $("st").className = "status " + cls;
   }
 
-  // адрес сервера: 1) из ссылки ?api=... 2) из памяти браузера
-  //                3) из файла api.json рядом со страницей (обновляется владельцем)
-  var fromUrlOrSaved = false;
+  // адрес сервера: 1) из ссылки ?api=... (явное указание — главнее всего)
+  //                2) из файла api.json рядом со страницей (владелец обновляет при смене туннеля)
+  //                3) из памяти браузера — только как запасной вариант
+  // ВАЖНО: api.json главнее памяти. Иначе однажды сохранённый адрес
+  // остаётся навсегда и после ротации туннеля связь пропадает.
+  var fromUrl = null, saved = null;
   try {
-    var qs = new URLSearchParams(location.search);
-    var fromUrl = qs.get("api");
-    if (fromUrl) {
-      $("api").value = fromUrl.trim();
-      localStorage.setItem("ing_api", fromUrl.trim());
-      fromUrlOrSaved = true;
-    } else {
-      var saved = localStorage.getItem("ing_api");
-      if (saved) { $("api").value = saved; fromUrlOrSaved = true; }
-    }
+    fromUrl = new URLSearchParams(location.search).get("api");
+    if (fromUrl) fromUrl = fromUrl.trim();
+    saved = localStorage.getItem("ing_api");
   } catch(e){}
 
   function checkHealth(){
@@ -254,6 +251,7 @@
       $("meta").textContent = "модель " + (d.model_id || "?") + " · " + ms + " мс · " + (d.device || "?");
       $("meta").className = "status ok";
       setStatus("ok", "сервер на связи");
+      retried = false;   // связь есть — снова разрешаем автоповтор
     })
     .catch(function(err){
       clearTimeout(tm);
@@ -264,6 +262,23 @@
       $("meta").textContent = "не удалось перевести: " + m;
       $("meta").className = "status err";
       setStatus("err", "нет связи с " + url + " — см. раздел ниже");
+      // Возможно, туннель сменил адрес, пока страница была открыта.
+      // Перечитываем api.json и, если адрес новый, повторяем перевод один раз.
+      if (!retried) {
+        fetch("api.json?t=" + Date.now(), {cache: "no-store"})
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(cfg){
+            var fresh = cfg && cfg.api ? String(cfg.api).trim() : "";
+            if (fresh && fresh !== url) {
+              $("api").value = fresh;
+              try { localStorage.setItem("ing_api", fresh); } catch(e){}
+              setStatus("", "адрес сервера изменился, пробую снова…");
+              retried = true;
+              setTimeout(translate, 300);
+            }
+          })
+          .catch(function(){});
+      }
     })
     .then(function(){
       busy = false;
@@ -288,17 +303,29 @@
 
   if (!$("api").value) $("api").placeholder = DEFAULT_API;
 
-  // если адрес не задан явно — спросим api.json (владелец обновляет его при смене туннеля)
-  if (fromUrlOrSaved) {
+  // Порядок: ?api= → api.json → память браузера.
+  // api.json спрашиваем всегда (кроме явного ?api=), поэтому смена
+  // туннеля подхватывается сама и старый адрес не залипает.
+  if (fromUrl) {
+    $("api").value = fromUrl;
+    try { localStorage.setItem("ing_api", fromUrl); } catch(e){}
     checkHealth();
   } else {
     setStatus("", "узнаю адрес сервера…");
     fetch("api.json?t=" + Date.now(), {cache: "no-store"})
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(cfg){
-        if (cfg && cfg.api) $("api").value = String(cfg.api).trim();
+        if (cfg && cfg.api) {
+          var fresh = String(cfg.api).trim();
+          $("api").value = fresh;
+          try { localStorage.setItem("ing_api", fresh); } catch(e){}
+        } else if (saved) {
+          $("api").value = saved;          // api.json не прочитался — берём память
+        }
       })
-      .catch(function(){})
+      .catch(function(){
+        if (saved) $("api").value = saved;
+      })
       .then(function(){ checkHealth(); });
   }
 })();
