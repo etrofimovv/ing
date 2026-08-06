@@ -83,15 +83,7 @@
 </div>
 
 <div class="card">
-  <div class="row">
-    <div style="flex:0 0 auto">
-      <button id="go">Перевести</button>
-    </div>
-    <div>
-      <label>Адрес сервера перевода</label>
-      <input type="text" id="api" placeholder="http://127.0.0.1:8080">
-    </div>
-  </div>
+  <button id="go">Перевести</button>
   <div class="status" id="st"><span class="dot" id="dot"></span><span id="sttext">проверяю соединение…</span></div>
 </div>
 
@@ -153,6 +145,15 @@
   </div>
 </details>
 
+<details id="srvbox">
+  <summary>Адрес сервера перевода</summary>
+  <div class="hint">
+    <p>Обычно менять не нужно — адрес подставляется автоматически.
+    Заполните, если подключаетесь к своему серверу или к серверу коллеги.</p>
+    <input type="text" id="api" placeholder="http://127.0.0.1:8080">
+  </div>
+</details>
+
 <footer>
   Исходный код: <a href="https://github.com/etrofimovv/ing" target="_blank">github.com/etrofimovv/ing</a><br>
   Код — MIT. Модель NLLB-200 — CC-BY-NC 4.0, только некоммерческое использование.
@@ -210,6 +211,8 @@
       .catch(function(){
         clearTimeout(tm);
         setStatus("err", "сервер не найден по адресу " + url + " — см. раздел ниже");
+        var box = $("srvbox");   // раскрываем поле адреса: скорее всего нужно его
+        if (box) box.open = true;
       });
   }
 
