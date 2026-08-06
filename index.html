@@ -178,10 +178,17 @@
     $("st").className = "status " + cls;
   }
 
-  // адрес сервера запоминается в браузере
+  // адрес сервера: 1) из ссылки ?api=... 2) из памяти браузера
   try {
-    var saved = localStorage.getItem("ing_api");
-    if (saved) $("api").value = saved;
+    var qs = new URLSearchParams(location.search);
+    var fromUrl = qs.get("api");
+    if (fromUrl) {
+      $("api").value = fromUrl.trim();
+      localStorage.setItem("ing_api", fromUrl.trim());
+    } else {
+      var saved = localStorage.getItem("ing_api");
+      if (saved) $("api").value = saved;
+    }
   } catch(e){}
 
   function checkHealth(){
