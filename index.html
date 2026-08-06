@@ -179,15 +179,18 @@
   }
 
   // адрес сервера: 1) из ссылки ?api=... 2) из памяти браузера
+  //                3) из файла api.json рядом со страницей (обновляется владельцем)
+  var fromUrlOrSaved = false;
   try {
     var qs = new URLSearchParams(location.search);
     var fromUrl = qs.get("api");
     if (fromUrl) {
       $("api").value = fromUrl.trim();
       localStorage.setItem("ing_api", fromUrl.trim());
+      fromUrlOrSaved = true;
     } else {
       var saved = localStorage.getItem("ing_api");
-      if (saved) $("api").value = saved;
+      if (saved) { $("api").value = saved; fromUrlOrSaved = true; }
     }
   } catch(e){}
 
@@ -281,7 +284,20 @@
   }
 
   if (!$("api").value) $("api").placeholder = DEFAULT_API;
-  checkHealth();
+
+  // если адрес не задан явно — спросим api.json (владелец обновляет его при смене туннеля)
+  if (fromUrlOrSaved) {
+    checkHealth();
+  } else {
+    setStatus("", "узнаю адрес сервера…");
+    fetch("api.json?t=" + Date.now(), {cache: "no-store"})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(cfg){
+        if (cfg && cfg.api) $("api").value = String(cfg.api).trim();
+      })
+      .catch(function(){})
+      .then(function(){ checkHealth(); });
+  }
 })();
 </script>
 </body>
