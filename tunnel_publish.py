@@ -28,7 +28,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 API_JSON = os.path.join(HERE, "api.json")
 SITE = "https://etrofimovv.github.io/ing/"
 
-URL_RE = re.compile(rb"https://[a-z0-9-]+\.lhr\.life")
+URL_RE = re.compile(rb"https://[a-z0-9-]+\.(?:lhr\.life|serveousercontent\.com)")
+
+# Постоянное имя на serveo (нужна разовая регистрация ssh-ключа на
+# https://console.serveo.net). Если занято или ключ не зарегистрирован —
+# автоматически падаем на localhost.run со случайным адресом.
+SERVEO_NAME = os.environ.get("ING_SERVEO_NAME", "inhtranslate")
 
 
 def log(msg):
@@ -90,14 +95,25 @@ def publish(address):
         log("  !!! ошибка публикации: %s" % e)
 
 
-def run_tunnel(port):
-    """Один цикл жизни туннеля. Возвращается, когда туннель закрылся."""
-    cmd = [
+def build_cmd(port, provider):
+    """Команда ssh для выбранного сервиса туннелей."""
+    base = [
         "ssh", "-o", "StrictHostKeyChecking=no",
         "-o", "ServerAliveInterval=20", "-o", "ServerAliveCountMax=3",
         "-o", "ExitOnForwardFailure=yes",
-        "-R", "80:127.0.0.1:%s" % port, "nokey@localhost.run",
     ]
+    key = os.path.expanduser("~/.ssh/id_ed25519_llm12")
+    if provider == "serveo":
+        # постоянное имя: https://<SERVEO_NAME>.serveo.net
+        if os.path.exists(key):
+            base += ["-i", key]
+        return base + ["-R", "%s:80:127.0.0.1:%s" % (SERVEO_NAME, port), "serveo.net"]
+    return base + ["-R", "80:127.0.0.1:%s" % port, "nokey@localhost.run"]
+
+
+def run_tunnel(port, provider="serveo"):
+    """Один цикл жизни туннеля. Возвращается, когда туннель закрылся."""
+    cmd = build_cmd(port, provider)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     started = threading.Event()
@@ -176,11 +192,13 @@ def main():
 
     log("Сервер найден. Открываю туннель...")
 
+    provider = "serveo"
     attempt = 0
     while True:
         attempt += 1
+        got = None
         try:
-            run_tunnel(port)
+            got = run_tunnel(port, provider)
         except KeyboardInterrupt:
             log("Остановлено.")
             return 0
@@ -190,6 +208,17 @@ def main():
         if not server_alive(port):
             log("Сервер перевода остановлен — выхожу.")
             return 0
+
+        # serveo не дал адрес (ключ не зарегистрирован / имя занято) —
+        # переходим на localhost.run, он работает всегда
+        if provider == "serveo" and not got:
+            log("")
+            log("  Постоянное имя на serveo недоступно.")
+            log("  Чтобы включить его, зарегистрируйте ssh-ключ:")
+            log("      https://console.serveo.net")
+            log("  Пока перехожу на запасной туннель (адрес случайный,")
+            log("  но ссылка для коллег остаётся прежней).")
+            provider = "localhost.run"
 
         log("  туннель закрылся, поднимаю заново (попытка %d)..." % (attempt + 1))
         time.sleep(3)
