@@ -167,6 +167,7 @@
   var DEFAULT_API = "http://127.0.0.1:8080";
   var busy = false;
   var retried = false;   // защита от бесконечного повтора при смене адреса
+  var healthRetried = false;
 
   function apiUrl(){
     var v = ($("api").value || "").trim();
@@ -206,15 +207,36 @@
     fetch(url + "/health", {signal: ctl.signal})
       .then(function(r){ clearTimeout(tm); if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function(d){
+        healthRetried = false;   // связь есть — снова разрешаем автоповтор
         var dev = d.device || "?";
         var mdl = d.loaded_model_id || d.default_model_id || "?";
         setStatus("ok", "сервер на связи · " + dev + " · модель " + mdl);
       })
       .catch(function(){
         clearTimeout(tm);
-        setStatus("err", "сервер не найден по адресу " + url + " — см. раздел ниже");
-        var box = $("srvbox");   // раскрываем поле адреса: скорее всего нужно его
-        if (box) box.open = true;
+        var box = $("srvbox");
+        var notFound = function(u){
+          setStatus("err", "сервер не найден по адресу " + u + " — см. раздел ниже");
+          if (box) box.open = true;   // раскрываем поле адреса
+        };
+        if (healthRetried) { notFound(url); return; }
+        // Туннель мог сменить адрес, пока страница была открыта: перечитываем
+        // api.json и, если адрес новый, пробуем его один раз.
+        fetch(CFG + "?t=" + Date.now(), {cache: "no-store"})
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(cfg){
+            var fresh = cfg && cfg.api ? String(cfg.api).trim() : "";
+            if (fresh && fresh !== url) {
+              $("api").value = fresh;
+              try { localStorage.setItem("ing_api", fresh); } catch(e){}
+              healthRetried = true;
+              setStatus("", "адрес сервера изменился, пробую снова…");
+              setTimeout(checkHealth, 300);
+              return;
+            }
+            notFound(url);
+          })
+          .catch(function(){ notFound(url); });
       });
   }
 
