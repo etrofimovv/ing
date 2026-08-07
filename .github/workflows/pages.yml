@@ -17,7 +17,7 @@ permissions:
 # Новый пуш отменяет предыдущий запуск, но НЕ уже идущий деплой,
 # иначе частые обновления адреса туннеля срывают публикацию.
 concurrency:
-  group: pages
+  group: pages-deploy-ing
   cancel-in-progress: false
 
 jobs:
