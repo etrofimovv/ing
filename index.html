@@ -220,6 +220,9 @@
           if (box) box.open = true;   // раскрываем поле адреса
         };
         if (healthRetried) { notFound(url); return; }
+        // Явный ?api= — это осознанный выбор пользователя: не перезаписывать
+        // его из api.json даже при ошибке (см. сценарий 3 харнесса).
+        if (fromUrl) { notFound(url); return; }
         // Туннель мог сменить адрес, пока страница была открыта: перечитываем
         // api.json и, если адрес новый, пробуем его один раз.
         fetch(CFG + "?t=" + Date.now(), {cache: "no-store"})
@@ -291,7 +294,8 @@
       setStatus("err", "нет связи с " + url + " — см. раздел ниже");
       // Возможно, туннель сменил адрес, пока страница была открыта.
       // Перечитываем api.json и, если адрес новый, повторяем перевод один раз.
-      if (!retried) {
+      // При явном ?api= автоповтор не трогаем: адрес задан осознанно.
+      if (!retried && !fromUrl) {
         fetch(CFG + "?t=" + Date.now(), {cache: "no-store"})
           .then(function(r){ return r.ok ? r.json() : null; })
           .then(function(cfg){
