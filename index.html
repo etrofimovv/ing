@@ -204,7 +204,10 @@
     var ctl = new AbortController();
     var tm = setTimeout(function(){ ctl.abort(); }, 6000);
 
-    fetch(url + "/health", {signal: ctl.signal})
+    fetch(url + "/health", {
+      signal: ctl.signal,
+      headers: {"Bypass-Tunnel-Reminder": "true"}
+    })
       .then(function(r){ clearTimeout(tm); if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function(d){
         healthRetried = false;   // связь есть — снова разрешаем автоповтор
@@ -264,7 +267,10 @@
 
     fetch(url + "/v1/translate", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: {
+        "Content-Type": "application/json",
+        "Bypass-Tunnel-Reminder": "true"
+      },
       body: JSON.stringify({text: text, direction: "ru2inh"}),
       signal: ctl.signal
     })
